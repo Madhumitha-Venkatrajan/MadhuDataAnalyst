@@ -1,0 +1,123 @@
+SELECT TOP (1000) [Smartphone]
+      ,[Brand]
+      ,[Model]
+      ,[RAM]
+      ,[Storage]
+      ,[Color]
+      ,[Free]
+      ,[Final_Price]
+  FROM [PortfolioProject].[dbo].[smartphones_staging]
+
+
+  --Checking the duplicates
+--No duplicates found
+WITH duplicate_cte AS (
+   SELECT *, ROW_NUMBER() OVER(
+    PARTITION BY Smartphone,Brand,RAM,Color, Model,Free, Storage,Final_Price ORDER BY Final_Price) AS RowNumber
+   FROM smartphones_staging
+)
+SELECT *
+FROM duplicate_cte
+WHERE RowNumber > 1
+
+
+SELECT DISTINCT Final_Price
+FROM smartphones_staging
+Order by Final_Price;
+
+--We Have null values
+SELECT DISTINCT RAM
+FROM smartphones_staging
+Order by RAM;
+
+
+SELECT * FROM smartphones_staging
+WHERE RAM IS NULL OR RAM ='';
+
+SELECT * FROM smartphones_staging
+WHERE Storage IS NULL OR Storage ='';
+
+--AGG Function to check Average RAM
+SELECT Smartphone,RAM,
+(SELECT AVG(RAM)  
+FROM smartphones_staging
+) FROM smartphones_staging;
+
+
+SELECT Color,MAX(RAM) AS MAX_RAM,MIN(RAM) AS MIN_RAM,COUNT(RAM) AS COUNT_RAM
+FROM smartphones_staging
+GROUP BY Color ;
+
+--Using SUBQUERY to find MAX,MIN,AVG RAM for brand  
+SELECT Brand, AVG(MAX_RAM) as AvgMaxRam, AVG(MIN_RAM) as AvgMinRam, MAX(MAX_RAM) as BrandMaxRam, MIN(MIN_RAM) as MinBrandRam
+FROM
+(
+SELECT Model,MAX(RAM) AS MAX_RAM,MIN(RAM) AS MIN_RAM
+FROM smartphones_staging 
+GROUP BY Model 
+) AS Agg_value
+inner join smartphones_staging ss on ss.Model = Agg_value.Model
+GROUP BY Brand;
+
+
+--List of Smartphones which having more than 1000 as Final Price
+SELECT Smartphone,Final_Price
+FROM smartphones_staging
+WHERE Final_Price > 1000
+ORDER BY Smartphone;
+
+--List of Brand's having count more than 10
+SELECT Brand,COUNT(Brand)
+FROM smartphones_staging
+GROUP BY Brand
+HAVING COUNT(Brand)>10;
+
+--Case Statement to find price 
+SELECT Smartphone,Final_Price,
+CASE 
+    WHEN Final_Price>2000 THEN 'High price smartphones'
+    WHEN Final_Price<800 THEN 'Low price Smartphones'
+END AS Smartphones_Classification
+FROM smartphones_staging
+ORDER BY Final_Price;
+
+--Window Functions 
+SELECT Brand,Model,RAM,Storage,
+AVG(Final_Price)OVER(PARTITION BY Brand) AS Brand_Avg_Price, 
+MAX(Final_Price)OVER(PARTITION BY Brand) AS Brand_Max_Price,
+MIN(Final_Price)OVER(PARTITION BY Brand) AS Brand_Min_Price,
+RANK()OVER(PARTITION BY Brand ORDER BY Final_Price DESC) AS Rank_smartphones_brand
+FROM smartphones_staging
+
+SELECT * FROM smartphones_staging;
+
+--Finding AVG 
+SELECT AVG(FINAL_PRICE) FROM smartphones_staging;
+
+--Sql VIEWS
+GO
+CREATE VIEW [Smartphone_Above_Average_Price] AS
+SELECT Smartphone, Final_Price
+FROM smartphones_staging
+WHERE Final_Price > (SELECT AVG(Final_Price) FROM smartphones_staging);
+
+GO
+SELECT * FROM [Smartphone_Above_Average_Price];
+
+--Stored Procedure to check only for Apple Brand and iphone 13 model
+GO
+CREATE   PROCEDURE Brand_Model_value @Brand varchar(255),@Model varchar(255)
+AS
+ BEGIN
+   SELECT * FROM smartphones_staging WHERE Brand =@Brand AND Model=@Model;
+ END  
+
+EXEC Brand_Model_value @Brand = 'Apple', @Model = 'iphone 13';
+
+
+
+
+
+
+
+
